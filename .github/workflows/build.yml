@@ -1,0 +1,59 @@
+name: build-installers
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Unpack sources
+        run: python -m zipfile -e pdfdesk-payload.zip .
+      - name: Build app bundle
+        run: node build.mjs
+      - name: Stage app
+        shell: bash
+        run: |
+          mkdir -p electron/app
+          cp dist/PDFDesk.html electron/app/PDFDesk.html
+      - name: Build installer
+        working-directory: electron
+        run: |
+          npm install
+          npx electron-builder --win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PDFDesk-Windows-Installer
+          path: electron/release/*.exe
+
+  mac:
+    runs-on: macos-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Unpack sources
+        run: python3 -m zipfile -e pdfdesk-payload.zip .
+      - name: Build app bundle
+        run: node build.mjs
+      - name: Stage app
+        run: |
+          mkdir -p electron/app
+          cp dist/PDFDesk.html electron/app/PDFDesk.html
+      - name: Build installer
+        working-directory: electron
+        run: |
+          npm install
+          npx electron-builder --mac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PDFDesk-macOS-Installer
+          path: electron/release/*.dmg
