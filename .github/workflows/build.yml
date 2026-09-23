@@ -1,4 +1,5 @@
 name: build-installers
+
 on:
   push:
     branches: [ main ]
@@ -13,7 +14,8 @@ jobs:
         with:
           node-version: 20
       - name: Unpack sources
-        run: python -m zipfile -e atob-pdf-payload.zip .
+        shell: bash
+        run: for f in atob-pdf-payload*.zip; do python -m zipfile -e "$f" .; done
       - name: Build app bundle
         run: node build.mjs
       - name: Stage app
@@ -41,7 +43,7 @@ jobs:
         with:
           node-version: 20
       - name: Unpack sources
-        run: python3 -m zipfile -e atob-pdf-payload.zip .
+        run: for f in atob-pdf-payload*.zip; do python3 -m zipfile -e "$f" .; done
       - name: Build app bundle
         run: node build.mjs
       - name: Stage app
@@ -73,7 +75,7 @@ jobs:
         with:
           gradle-version: "8.13"
       - name: Unpack sources
-        run: python3 -m zipfile -e atob-pdf-payload.zip .
+        run: for f in atob-pdf-payload*.zip; do python3 -m zipfile -e "$f" .; done
       - name: Build app bundle
         run: node build.mjs
       - name: Stage app
@@ -84,11 +86,11 @@ jobs:
         working-directory: android
         run: gradle assembleDebug
       - name: Rename APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk "AtoB-PDF-3.2.0.apk"
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk "AtoB-PDF-3.4.0.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: AtoB-PDF-Android-APK
-          path: AtoB-PDF-3.2.0.apk
+          path: AtoB-PDF-3.4.0.apk
 
   release:
     needs: [ windows, mac, android ]
@@ -102,13 +104,14 @@ jobs:
           path: installers
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.2.0
-          name: AtoB PDF 3.2.0
+          tag_name: v3.4.0
+          name: AtoB PDF 3.4.0
           body: |
             Offline PDF toolkit for Windows, macOS and Android. Download the file for your system below:
-            - Windows: "AtoB PDF Setup 3.2.0.exe"
-            - macOS: "AtoB PDF-3.2.0-universal.dmg" (Intel + Apple Silicon)
-            - Android: "AtoB-PDF-3.2.0.apk" (Android 10 or newer)
+            - Windows: "AtoB PDF Setup 3.4.0.exe"
+            - macOS: "AtoB PDF-3.4.0-universal.dmg" (Intel + Apple Silicon)
+            - Android: "AtoB-PDF-3.4.0.apk" (Android 10 or newer)
 
+            New in 3.4: saved signatures and initials; share signed PDFs by email or WhatsApp; a Kindle-style reader (original page or reflowed text, themes, fonts, bookmarks, highlights, notes); read-aloud with word highlighting; reading, OCR and speech for English, Arabic, Urdu, Hindi, Malayalam and Tamil.
             See the README for install steps and first-run notes.
           files: installers/*
