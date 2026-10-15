@@ -1,12 +1,55 @@
 name: build-installers
 
+# main      → test, build all three, publish release v<version from electron/package.json>
+# ci/**     → test and build only (installers downloadable from the run), never releases
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 'ci/**' ]
   workflow_dispatch:
 
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # SHA-256 of the permanent Android signing certificate. An APK signed with any other
+  # key can't update installed copies, so the build fails if this doesn't match.
+  ATOB_CERT_SHA256: "8b2070e247f516dafbc1f1a4243bb42a2cd040769071a54006d62b9710fa1c4e"
+
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Unpack sources
+        run: for f in atob-pdf-payload*.zip; do python3 -m zipfile -e "$f" .; done
+      - name: Version is the same in all five places
+        id: ver
+        run: echo "version=$(node scripts/check-version.mjs)" >> "$GITHUB_OUTPUT"
+      - name: Refuse to overwrite a published release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VER: ${{ steps.ver.outputs.version }}
+        run: |
+          if gh release view "v$VER" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/v$VER" >/dev/null 2>&1; then
+            echo "::error::v$VER is already released. Bump the version (node scripts/check-version.mjs lists the five places) instead of overwriting it."
+            exit 1
+          fi
+      - name: Syntax check
+        run: for f in src/*.js build.mjs electron/*.js test/*.mjs scripts/*.mjs; do node --check "$f"; done
+      - name: Unit tests
+        run: node test/core.test.mjs
+      - name: Bundle builds with every engine
+        run: node build.mjs
+
   windows:
+    needs: test
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,8 +75,10 @@ jobs:
         with:
           name: AtoB-PDF-Windows-Installer
           path: electron/release/*.exe
+          if-no-files-found: error
 
   mac:
+    needs: test
     runs-on: macos-latest
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -59,9 +104,13 @@ jobs:
         with:
           name: AtoB-PDF-macOS-Installer
           path: electron/release/*.dmg
+          if-no-files-found: error
 
   android:
+    needs: test
     runs-on: ubuntu-latest
+    env:
+      VER: ${{ needs.test.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -82,36 +131,72 @@ jobs:
         run: |
           mkdir -p android/app/src/main/assets
           cp dist/AtoB-PDF.html android/app/src/main/assets/AtoB-PDF.html
-      - name: Build APK
+      - name: Restore signing key
+        id: key
+        env:
+          KS_B64: ${{ secrets.ATOB_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KS_B64" ]; then
+            echo "::warning::Secret ATOB_KEYSTORE_B64 is missing - building a debug-signed APK (same as 3.4.0). Add the 4 ATOB_* secrets so updates install over the old app."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/atob-release.jks"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build signed APK
+        if: steps.key.outputs.signed == 'true'
+        working-directory: android
+        env:
+          ATOB_KEYSTORE: ${{ runner.temp }}/atob-release.jks
+          ATOB_KEYSTORE_PASSWORD: ${{ secrets.ATOB_KEYSTORE_PASSWORD }}
+          ATOB_KEY_ALIAS: ${{ secrets.ATOB_KEY_ALIAS }}
+          ATOB_KEY_PASSWORD: ${{ secrets.ATOB_KEY_PASSWORD }}
+        run: gradle assembleRelease
+      - name: Verify it is signed with the permanent key
+        if: steps.key.outputs.signed == 'true'
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          test -f "$APK" || { echo "::error::no signed APK (app-release.apk) was produced"; ls -R android/app/build/outputs/apk; exit 1; }
+          SIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          "$SIGNER" verify --print-certs "$APK" | tee sig.txt
+          grep -qi "certificate SHA-256 digest: $ATOB_CERT_SHA256" sig.txt || { echo "::error::APK is not signed with the AtoB PDF release key"; exit 1; }
+          cp "$APK" "AtoB-PDF-$VER.apk"
+          rm -f "$RUNNER_TEMP/atob-release.jks"
+      - name: Build debug-signed APK (no signing secrets yet)
+        if: steps.key.outputs.signed != 'true'
         working-directory: android
         run: gradle assembleDebug
-      - name: Rename APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk "AtoB-PDF-3.4.0.apk"
+      - name: Stage debug APK
+        if: steps.key.outputs.signed != 'true'
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk "AtoB-PDF-$VER.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: AtoB-PDF-Android-APK
-          path: AtoB-PDF-3.4.0.apk
+          path: AtoB-PDF-${{ needs.test.outputs.version }}.apk
+          if-no-files-found: error
 
   release:
-    needs: [ windows, mac, android ]
+    if: github.ref == 'refs/heads/main'
+    needs: [ test, windows, mac, android ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      VER: ${{ needs.test.outputs.version }}
     steps:
+      - uses: actions/checkout@v4
+      - name: Release notes
+        run: |
+          unzip -p atob-pdf-payload.zip RELEASE_NOTES.md | sed "s/{{VERSION}}/$VER/g" > notes.md
+          test -s notes.md
       - uses: actions/download-artifact@v4
         with:
           merge-multiple: true
           path: installers
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.4.0
-          name: AtoB PDF 3.4.0
-          body: |
-            Offline PDF toolkit for Windows, macOS and Android. Download the file for your system below:
-            - Windows: "AtoB PDF Setup 3.4.0.exe"
-            - macOS: "AtoB PDF-3.4.0-universal.dmg" (Intel + Apple Silicon)
-            - Android: "AtoB-PDF-3.4.0.apk" (Android 10 or newer)
-
-            New in 3.4: saved signatures and initials; share signed PDFs by email or WhatsApp; a Kindle-style reader (original page or reflowed text, themes, fonts, bookmarks, highlights, notes); read-aloud with word highlighting; reading, OCR and speech for English, Arabic, Urdu, Hindi, Malayalam and Tamil.
-            See the README for install steps and first-run notes.
+          tag_name: v${{ needs.test.outputs.version }}
+          name: AtoB PDF ${{ needs.test.outputs.version }}
+          body_path: notes.md
           files: installers/*
+          fail_on_unmatched_files: true
