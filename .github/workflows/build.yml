@@ -137,8 +137,8 @@ jobs:
           KS_B64: ${{ secrets.ATOB_KEYSTORE_B64 }}
         run: |
           if [ -z "$KS_B64" ]; then
-            echo "::warning::Secret ATOB_KEYSTORE_B64 is missing - building a debug-signed APK (same as 3.4.0). Add the 4 ATOB_* secrets so updates install over the old app."
-            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::error::Secret ATOB_KEYSTORE_B64 is missing. Refusing to build an APK that couldn't update installed copies."
+            exit 1
           else
             echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/atob-release.jks"
             echo "signed=true" >> "$GITHUB_OUTPUT"
@@ -162,13 +162,6 @@ jobs:
           grep -qi "certificate SHA-256 digest: $ATOB_CERT_SHA256" sig.txt || { echo "::error::APK is not signed with the AtoB PDF release key"; exit 1; }
           cp "$APK" "AtoB-PDF-$VER.apk"
           rm -f "$RUNNER_TEMP/atob-release.jks"
-      - name: Build debug-signed APK (no signing secrets yet)
-        if: steps.key.outputs.signed != 'true'
-        working-directory: android
-        run: gradle assembleDebug
-      - name: Stage debug APK
-        if: steps.key.outputs.signed != 'true'
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk "AtoB-PDF-$VER.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: AtoB-PDF-Android-APK
