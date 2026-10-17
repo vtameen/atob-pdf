@@ -8,9 +8,9 @@ Go to the **[latest release](../../releases/latest)** and download the file for 
 
 | System | File |
 |---|---|
-| Windows 10 / 11 | `AtoB PDF Setup 3.4.3.exe` |
-| macOS (Intel + Apple Silicon) | `AtoB PDF-3.4.3-universal.dmg` |
-| Android 10+ | `AtoB-PDF-3.4.3.apk` |
+| Windows 10 / 11 | `AtoB PDF Setup 3.5.0.exe` |
+| macOS (Intel + Apple Silicon) | `AtoB PDF-3.5.0-universal.dmg` |
+| Android 10+ | `AtoB-PDF-3.5.0.apk` |
 
 ## Install
 
