@@ -8,9 +8,9 @@ Go to the **[latest release](../../releases/latest)** and download the file for 
 
 | System | File |
 |---|---|
-| Windows 10 / 11 | `AtoB PDF Setup 3.5.0.exe` |
-| macOS (Intel + Apple Silicon) | `AtoB PDF-3.5.0-universal.dmg` |
-| Android 10+ | `AtoB-PDF-3.5.0.apk` |
+| Windows 10 / 11 | `AtoB PDF Setup 3.7.0.exe` |
+| macOS (Intel + Apple Silicon) | `AtoB PDF-3.7.0-universal.dmg` |
+| Android 10+ | `AtoB-PDF-3.7.0.apk` |
 
 ## Install
 
@@ -18,7 +18,9 @@ Go to the **[latest release](../../releases/latest)** and download the file for 
 1. Download the `.exe` and double-click it.
 2. If Windows SmartScreen appears, click **More info**, then **Run anyway** (the app is unsigned - this warning is normal).
 3. Follow the installer. AtoB PDF appears in the Start menu and can open PDFs directly.
-4. Bonus: select several PDFs in Explorer, right-click, and choose **Merge in AtoB PDF**.
+4. To make double-clicking a PDF open AtoB PDF: click **Make AtoB PDF your PDF app** on the app's Home tab (or right-click a PDF > **Open with** > **Choose another app** > **AtoB PDF**, tick **Always**). Windows only lets you make this choice yourself.
+5. Bonus: select several PDFs in Explorer, right-click, and choose **Merge in AtoB PDF**.
+6. Troubleshooting: **Help > Show log file** in the app shows what happened when a PDF was opened.
 
 ### macOS
 1. Download the `.dmg`, open it, and drag **AtoB PDF** into Applications.
@@ -40,9 +42,11 @@ Notes: the "blocked" entry in Privacy & Security only appears for a few minutes 
 
 AtoB PDF is an Acrobat-style, offline-first PDF app:
 
-- **View & edit** - full reader with search and print, in-place text editing, add text, whiteout, highlight, shapes, images, sticky notes, true redaction
-- **Pages** - merge, split, extract, delete, rotate, crop, and drag-and-drop organize
-- **Convert** - PDF to Word/text/images, Word/text/images to PDF, OCR (make scanned PDFs searchable)
+- **View & edit** - document tabs, page thumbnails, bookmarks, attachments and form-field panels, search and print, in-place text editing, add text, whiteout, images, true redaction, dark mode
+- **Comments** - highlight, underline and strike out text, sticky notes, boxes, ovals, arrows, freehand drawing and stamps, saved as real PDF comments, with a Comments panel
+- **Work faster** - Ctrl/⌘+K to search every tool and action, Save straight back to the file on desktop, Save As, undo and redo, crash recovery
+- **Pages** - merge (keeps bookmarks), split, extract, delete, rotate, crop, and drag-and-drop organize; document properties
+- **Convert** - PDF to Word/Excel/text/images, Word/text/images to PDF, OCR (make scanned PDFs searchable)
 - **Sign & forms** - draw/type/upload a signature, fill PDF forms
 - **Secure & optimize** - password protect, unlock, compress, flatten, repair damaged files
 
